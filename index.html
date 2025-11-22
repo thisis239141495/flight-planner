@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Flight Route Planner</title>
+    <!-- Load Tailwind CSS CDN for modern, responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Use Inter font for a clean, professional look */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main Container Card -->
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">
+            ✈️ Global Flight Planner
+        </h1>
+        <p class="text-gray-600 mb-8 text-center">
+            Enter the 3-letter IATA codes for any airport worldwide.
+        </p>
+
+        <!-- Input Form Area -->
+        <div class="space-y-6">
+            <!-- Departure Input -->
+            <div>
+                <label for="departureCode" class="block text-sm font-medium text-gray-700 mb-1">
+                    Departure Airport (IATA Code)
+                </label>
+                <input type="text" id="departureCode" maxlength="3" placeholder="e.g., LHR, JFK, PEK"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 uppercase text-lg tracking-wider"
+                       aria-label="Departure Airport Code">
+            </div>
+
+            <!-- Arrival Input -->
+            <div>
+                <label for="arrivalCode" class="block text-sm font-medium text-gray-700 mb-1">
+                    Arrival Airport (IATA Code)
+                </label>
+                <input type="text" id="arrivalCode" maxlength="3" placeholder="e.g., DXB, SYD, CDG"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 uppercase text-lg tracking-wider"
+                       aria-label="Arrival Airport Code">
+            </div>
+
+            <!-- Plan Route Button -->
+            <button id="planRouteButton"
+                    class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 ease-in-out transform hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 active:bg-indigo-800">
+                Plan Route & Predict Time
+            </button>
+        </div>
+
+        <!-- Results Display Area -->
+        <div id="resultsArea" class="mt-8 pt-6 border-t border-gray-200 hidden">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">
+                Prediction Results
+            </h2>
+            <div class="space-y-3">
+                <!-- Distance Result -->
+                <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                    <span class="text-base font-medium text-blue-800">Flight Distance:</span>
+                    <span id="distanceResult" class="text-lg font-extrabold text-blue-600">--</span>
+                </div>
+                <!-- Time Result -->
+                <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                    <span class="text-base font-medium text-green-800">Estimated Flight Time:</span>
+                    <span id="timeResult" class="text-lg font-extrabold text-green-600">--</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Error Message Display Area -->
+        <div id="errorMessage" class="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg hidden">
+            <!-- Error messages will be displayed here -->
+        </div>
+    </div>
+
+    <!-- JavaScript Logic (Phase 3 Implementation) -->
+    <script>
+        // Constants and DOM element definitions
+        const planRouteButton = document.getElementById('planRouteButton');
+        const departureCodeInput = document.getElementById('departureCode');
+        const arrivalCodeInput = document.getElementById('arrivalCode');
+        const resultsArea = document.getElementById('resultsArea');
+        const distanceResult = document.getElementById('distanceResult');
+        const timeResult = document.getElementById('timeResult');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Step 1: Define Airport Coordinates Data Structure (Need to expand this list!)
+        const airportData = {
+            // China Examples
+            'PEK': { lat: 40.0799, lon: 116.603 }, // Beijing Capital
+            'PVG': { lat: 31.1434, lon: 121.785 }, // Shanghai Pudong
+            // Global Examples
+            'JFK': { lat: 40.6413, lon: -73.7781 }, // New York, USA
+            'LHR': { lat: 51.4700, lon: -0.4543 }, // London, UK
+            'CDG': { lat: 49.0097, lon: 2.5478 },  // Paris, France
+            'DXB': { lat: 25.2532, lon: 55.3656 }, // Dubai, UAE
+            'SYD': { lat: -33.9461, lon: 151.1772 }, // Sydney, Australia
+            // Add more airport data here...
+        };
+
+        // Step 2: Implement Haversine Formula (Calculates Great-Circle Distance)
+        function getDistance(lat1, lon1, lat2, lon2) {
+            // Earth's radius (in kilometers)
+            const R = 6371; 
+            
+            // Convert degrees to radians
+            const toRad = (degrees) => degrees * (Math.PI / 180);
+
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            
+            const a = 
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            
+            // Return distance in kilometers
+            return R * c; 
+        }
+
+        // Step 3: Main Route Planning and Prediction Function
+        function calculateRoute() {
+            // 1. Clear previous outputs
+            errorMessage.classList.add('hidden');
+            resultsArea.classList.add('hidden');
+            distanceResult.textContent = '--';
+            timeResult.textContent = '--';
+
+            // Get and normalize inputs
+            const depCode = departureCodeInput.value.trim().toUpperCase();
+            const arrCode = arrivalCodeInput.value.trim().toUpperCase();
+
+            // 2. Input Validation (Phase 4 Step 13)
+            if (depCode.length !== 3 || arrCode.length !== 3) {
+                errorMessage.textContent = 'Please enter valid 3-letter IATA airport codes.';
+                errorMessage.classList.remove('hidden');
+                return;
+            }
+            if (depCode === arrCode) {
+                 errorMessage.textContent = 'Departure and arrival airports cannot be the same.';
+                 errorMessage.classList.remove('hidden');
+                 return;
+            }
+
+            // 3. Airport Data Lookup
+            const depAirport = airportData[depCode];
+            const arrAirport = airportData[arrCode];
+
+            if (!depAirport || !arrAirport) {
+                errorMessage.textContent = `Could not find coordinates for one or both airports (${depCode} or ${arrCode}). Please check the codes or add them to the data set.`;
+                errorMessage.classList.remove('hidden');
+                return;
+            }
+
+            // 4. Core Calculations
+            const distance = getDistance(
+                depAirport.lat, depAirport.lon, 
+                arrAirport.lat, arrAirport.lon
+            );
+
+            // Average cruising speed for a commercial jet (e.g., 900 km/h)
+            const AVERAGE_SPEED_KMH = 900;
+            // Buffer time for taxi, takeoff, and landing (30 minutes)
+            const EXTRA_TIME_MINUTES = 30; 
+
+            // Flight time (in hours)
+            const flightTimeHours = distance / AVERAGE_SPEED_KMH;
+            
+            // Total time (in minutes)
+            const totalTimeMinutes = (flightTimeHours * 60) + EXTRA_TIME_MINUTES;
+
+            // 5. Format Output
+            const distanceFormatted = distance.toFixed(0) + ' KM';
+            const hours = Math.floor(totalTimeMinutes / 60);
+            const minutes = Math.round(totalTimeMinutes % 60);
+            
+            let timeFormatted = '';
+            if (hours > 0) {
+                timeFormatted += `${hours} hr `;
+            }
+            timeFormatted += `${minutes} min`;
+
+            // 6. Update UI
+            distanceResult.textContent = distanceFormatted;
+            timeResult.textContent = timeFormatted;
+            resultsArea.classList.remove('hidden');
+        }
+
+        // Attach the event listener to the button
+        planRouteButton.addEventListener('click', calculateRoute);
+
+        // Auto-convert input to uppercase for case-insensitive lookup
+        departureCodeInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+        arrivalCodeInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+    </script>
+</body>
+</html>
