@@ -1,208 +1,170 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Flight Route Planner</title>
-    <!-- Load Tailwind CSS CDN for modern, responsive styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Use Inter font for a clean, professional look */
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Flight Route Planner</title>
+<style>
+  :root {
+    --ink: #111827; --muted: #6b7280; --line: #e5e7eb;
+    --accent: #4338ca; --accent-soft: #eef2ff; --surface: #ffffff; --page: #f3f4f6;
+    --danger: #b91c1c; --danger-soft: #fef2f2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 16px; background: var(--page); color: var(--ink);
+    font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .card {
+    max-width: 680px; margin: 0 auto; background: var(--surface);
+    padding: 36px 32px; border-radius: 14px; box-shadow: 0 10px 30px rgba(17,24,39,.08);
+  }
+  h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -.02em; text-align: center; }
+  .subtitle { margin: 0 0 28px; text-align: center; color: var(--muted); font-size: 14px; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-top: 16px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+  input, select {
+    width: 100%; padding: 10px 12px; font-size: 16px; font-family: inherit;
+    border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: var(--ink);
+  }
+  input { text-transform: uppercase; letter-spacing: .12em; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  button {
+    flex: 1 1 160px; padding: 11px 18px; font-size: 15px; font-weight: 600; font-family: inherit;
+    color: #fff; background: var(--accent); border: 0; border-radius: 8px; cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: #3730a3; }
+  button:disabled { background: #9ca3af; cursor: default; }
+  .error {
+    margin-top: 20px; padding: 12px 14px; font-size: 14px;
+    background: var(--danger-soft); border: 1px solid #fecaca; color: var(--danger); border-radius: 8px;
+  }
+  .results { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+  .route { padding: 16px; border-radius: 10px; background: #f9fafb; margin-bottom: 14px; }
+  .route.best { background: var(--accent-soft); border: 1px solid #c7d2fe; }
+  .route-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .route-path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 17px; font-weight: 700; }
+  .route-total { font-size: 14px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+  .route-stops { font-size: 12px; color: var(--muted); margin: 4px 0 10px; }
+  .leg { display: flex; justify-content: space-between; font-size: 13px; color: #4b5563; padding: 2px 0; }
+  .leg span:first-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .footnote { margin: 30px 0 0; font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.6; }
+  .hidden { display: none; }
+  @media (max-width: 520px) { .fields { grid-template-columns: 1fr; } }
+</style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body>
+<div class="card">
+  <h1>Global Flight Route Planner</h1>
+  <p class="subtitle" id="networkLine">Loading the route network...</p>
 
-    <!-- Main Container Card -->
-    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
-        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">
-            ✈️ Global Flight Planner
-        </h1>
-        <p class="text-gray-600 mb-8 text-center">
-            Enter the 3-letter IATA codes for any airport worldwide.
-        </p>
-
-        <!-- Input Form Area -->
-        <div class="space-y-6">
-            <!-- Departure Input -->
-            <div>
-                <label for="departureCode" class="block text-sm font-medium text-gray-700 mb-1">
-                    Departure Airport (IATA Code)
-                </label>
-                <input type="text" id="departureCode" maxlength="3" placeholder="e.g., LHR, JFK, PEK"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 uppercase text-lg tracking-wider"
-                       aria-label="Departure Airport Code">
-            </div>
-
-            <!-- Arrival Input -->
-            <div>
-                <label for="arrivalCode" class="block text-sm font-medium text-gray-700 mb-1">
-                    Arrival Airport (IATA Code)
-                </label>
-                <input type="text" id="arrivalCode" maxlength="3" placeholder="e.g., DXB, SYD, CDG"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 uppercase text-lg tracking-wider"
-                       aria-label="Arrival Airport Code">
-            </div>
-
-            <!-- Plan Route Button -->
-            <button id="planRouteButton"
-                    class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 ease-in-out transform hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 active:bg-indigo-800">
-                Plan Route & Predict Time
-            </button>
-        </div>
-
-        <!-- Results Display Area -->
-        <div id="resultsArea" class="mt-8 pt-6 border-t border-gray-200 hidden">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">
-                Prediction Results
-            </h2>
-            <div class="space-y-3">
-                <!-- Distance Result -->
-                <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                    <span class="text-base font-medium text-blue-800">Flight Distance:</span>
-                    <span id="distanceResult" class="text-lg font-extrabold text-blue-600">--</span>
-                </div>
-                <!-- Time Result -->
-                <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                    <span class="text-base font-medium text-green-800">Estimated Flight Time:</span>
-                    <span id="timeResult" class="text-lg font-extrabold text-green-600">--</span>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Error Message Display Area -->
-        <div id="errorMessage" class="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg hidden">
-            <!-- Error messages will be displayed here -->
-        </div>
+  <div class="fields">
+    <div>
+      <label for="departureCode">Departure (IATA)</label>
+      <input type="text" id="departureCode" maxlength="3" placeholder="BNA">
     </div>
+    <div>
+      <label for="arrivalCode">Arrival (IATA)</label>
+      <input type="text" id="arrivalCode" maxlength="3" placeholder="KTM">
+    </div>
+  </div>
 
-    <!-- JavaScript Logic (Phase 3 Implementation) -->
-    <script>
-        // Constants and DOM element definitions
-        const planRouteButton = document.getElementById('planRouteButton');
-        const departureCodeInput = document.getElementById('departureCode');
-        const arrivalCodeInput = document.getElementById('arrivalCode');
-        const resultsArea = document.getElementById('resultsArea');
-        const distanceResult = document.getElementById('distanceResult');
-        const timeResult = document.getElementById('timeResult');
-        const errorMessage = document.getElementById('errorMessage');
+  <div class="controls">
+    <div style="flex:0 0 auto">
+      <label for="metric">Minimise</label>
+      <select id="metric">
+        <option value="distance">Total distance</option>
+        <option value="hops">Number of stops</option>
+      </select>
+    </div>
+    <div style="flex:0 0 auto">
+      <label for="k">Itineraries</label>
+      <select id="k"><option>1</option><option>2</option><option selected>3</option><option>5</option></select>
+    </div>
+    <button id="planRouteButton">Find routes</button>
+  </div>
 
-        // Step 1: Define Airport Coordinates Data Structure (Need to expand this list!)
-        const airportData = {
-            // China Examples
-            'PEK': { lat: 40.0799, lon: 116.603 }, // Beijing Capital
-            'PVG': { lat: 31.1434, lon: 121.785 }, // Shanghai Pudong
-            // Global Examples
-            'JFK': { lat: 40.6413, lon: -73.7781 }, // New York, USA
-            'LHR': { lat: 51.4700, lon: -0.4543 }, // London, UK
-            'CDG': { lat: 49.0097, lon: 2.5478 },  // Paris, France
-            'DXB': { lat: 25.2532, lon: 55.3656 }, // Dubai, UAE
-            'SYD': { lat: -33.9461, lon: 151.1772 }, // Sydney, Australia
-            // Add more airport data here...
-        };
+  <div id="errorMessage" class="error hidden"></div>
+  <div id="resultsArea" class="results hidden"></div>
 
-        // Step 2: Implement Haversine Formula (Calculates Great-Circle Distance)
-        function getDistance(lat1, lon1, lat2, lon2) {
-            // Earth's radius (in kilometers)
-            const R = 6371; 
-            
-            // Convert degrees to radians
-            const toRad = (degrees) => degrees * (Math.PI / 180);
+  <p class="footnote">
+    Airports from OurAirports, route pairs from OpenFlights. The network is treated as
+    undirected and distances are great-circle, not flown track miles.
+  </p>
+</div>
 
-            const dLat = toRad(lat2 - lat1);
-            const dLon = toRad(lon2 - lon1);
-            
-            const a = 
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            
-            // Return distance in kilometers
-            return R * c; 
-        }
+<script>
+const $ = (id) => document.getElementById(id);
+const button = $('planRouteButton');
+const errorBox = $('errorMessage');
+const results = $('resultsArea');
+const fmt = (n) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 
-        // Step 3: Main Route Planning and Prediction Function
-        function calculateRoute() {
-            // 1. Clear previous outputs
-            errorMessage.classList.add('hidden');
-            resultsArea.classList.add('hidden');
-            distanceResult.textContent = '--';
-            timeResult.textContent = '--';
+async function loadSummary() {
+  try {
+    const s = await (await fetch('/api/summary')).json();
+    $('networkLine').textContent =
+      `${fmt(s.airports)} airports, ${fmt(s.routes)} routes, ` +
+      `largest connected component ${fmt(s.largest_component)} airports`;
+  } catch {
+    $('networkLine').textContent = 'Start the server with:  python main.py --serve';
+  }
+}
 
-            // Get and normalize inputs
-            const depCode = departureCodeInput.value.trim().toUpperCase();
-            const arrCode = arrivalCodeInput.value.trim().toUpperCase();
+function showError(message) {
+  errorBox.textContent = message;
+  errorBox.classList.remove('hidden');
+  results.classList.add('hidden');
+}
 
-            // 2. Input Validation (Phase 4 Step 13)
-            if (depCode.length !== 3 || arrCode.length !== 3) {
-                errorMessage.textContent = 'Please enter valid 3-letter IATA airport codes.';
-                errorMessage.classList.remove('hidden');
-                return;
-            }
-            if (depCode === arrCode) {
-                 errorMessage.textContent = 'Departure and arrival airports cannot be the same.';
-                 errorMessage.classList.remove('hidden');
-                 return;
-            }
+function renderRoutes(routes) {
+  errorBox.classList.add('hidden');
+  results.innerHTML = routes.map((route, i) => {
+    const legs = route.legs.map((l) =>
+      `<div class="leg"><span>${l.from} &rarr; ${l.to}</span><span>${fmt(l.km)} km</span></div>`
+    ).join('');
+    const stops = route.segments === 1
+      ? 'non-stop'
+      : `${route.segments - 1} stop${route.segments > 2 ? 's' : ''}`;
+    return `<div class="route${i === 0 ? ' best' : ''}">
+        <div class="route-head">
+          <span class="route-path">${route.path.join(' → ')}</span>
+          <span class="route-total">${fmt(route.total_km)} km</span>
+        </div>
+        <div class="route-stops">${stops}</div>
+        ${legs}
+      </div>`;
+  }).join('');
+  results.classList.remove('hidden');
+}
 
-            // 3. Airport Data Lookup
-            const depAirport = airportData[depCode];
-            const arrAirport = airportData[arrCode];
+async function planRoute() {
+  const from = $('departureCode').value.trim().toUpperCase();
+  const to = $('arrivalCode').value.trim().toUpperCase();
+  if (from.length !== 3 || to.length !== 3) return showError('Enter two three-letter IATA codes.');
+  if (from === to) return showError('Origin and destination are the same airport.');
 
-            if (!depAirport || !arrAirport) {
-                errorMessage.textContent = `Could not find coordinates for one or both airports (${depCode} or ${arrCode}). Please check the codes or add them to the data set.`;
-                errorMessage.classList.remove('hidden');
-                return;
-            }
+  button.disabled = true;
+  button.textContent = 'Searching...';
+  try {
+    const params = new URLSearchParams({ from, to, metric: $('metric').value, k: $('k').value });
+    const data = await (await fetch('/api/route?' + params)).json();
+    if (data.error) showError(data.error); else renderRoutes(data.routes);
+  } catch {
+    showError('Could not reach the server. Start it with:  python main.py --serve');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Find routes';
+  }
+}
 
-            // 4. Core Calculations
-            const distance = getDistance(
-                depAirport.lat, depAirport.lon, 
-                arrAirport.lat, arrAirport.lon
-            );
-
-            // Average cruising speed for a commercial jet (e.g., 900 km/h)
-            const AVERAGE_SPEED_KMH = 900;
-            // Buffer time for taxi, takeoff, and landing (30 minutes)
-            const EXTRA_TIME_MINUTES = 30; 
-
-            // Flight time (in hours)
-            const flightTimeHours = distance / AVERAGE_SPEED_KMH;
-            
-            // Total time (in minutes)
-            const totalTimeMinutes = (flightTimeHours * 60) + EXTRA_TIME_MINUTES;
-
-            // 5. Format Output
-            const distanceFormatted = distance.toFixed(0) + ' KM';
-            const hours = Math.floor(totalTimeMinutes / 60);
-            const minutes = Math.round(totalTimeMinutes % 60);
-            
-            let timeFormatted = '';
-            if (hours > 0) {
-                timeFormatted += `${hours} hr `;
-            }
-            timeFormatted += `${minutes} min`;
-
-            // 6. Update UI
-            distanceResult.textContent = distanceFormatted;
-            timeResult.textContent = timeFormatted;
-            resultsArea.classList.remove('hidden');
-        }
-
-        // Attach the event listener to the button
-        planRouteButton.addEventListener('click', calculateRoute);
-
-        // Auto-convert input to uppercase for case-insensitive lookup
-        departureCodeInput.addEventListener('input', (e) => {
-            e.target.value = e.target.value.toUpperCase();
-        });
-        arrivalCodeInput.addEventListener('input', (e) => {
-            e.target.value = e.target.value.toUpperCase();
-        });
-    </script>
+button.addEventListener('click', planRoute);
+for (const id of ['departureCode', 'arrivalCode']) {
+  $(id).addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase(); });
+  $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') planRoute(); });
+}
+loadSummary();
+</script>
 </body>
 </html>

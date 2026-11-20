@@ -1,49 +1,44 @@
-import pandas as pd
-import networkx as nx
+"""Load the OpenFlights route table and add it to the airport graph.
 
-# def load_routes_data(filepath="data/routes.dat"):
-#     cols = [
-#         "airline", "airline_id", "source_airport", "source_airport_id",
-#         "destination_airport", "destination_airport_id", "codeshare",
-#         "stops", "equipment"
-#     ]
-#     routes = pd.read_csv(filepath, header=None, names=cols)
-    
-#     routes = routes.dropna(subset=["source_airport", "destination_airport"])
-#     return routes
-def load_routes_data(filepath="data/routes.csv"):
-    cols = [
-        "airline", "airline_id",
-        "source_airport", "source_airport_id",
-        "destination_airport", "destination_airport_id",
-        "codeshare", "stops", "equipment"
-    ]
-    routes = pd.read_csv(filepath, header=None, names=cols)
+Note on modelling: routes are recorded as directed pairs, but this project
+treats the network as undirected. In scheduled commercial aviation the
+overwhelming majority of segments are flown in both directions, and the
+questions this project is aimed at (reachability, segment counts, distance)
+are symmetric. Anything schedule-dependent would need the directed graph.
+"""
+
+from __future__ import annotations
+
+import networkx as nx
+import pandas as pd
+
+ROUTE_COLUMNS = [
+    "airline", "airline_id",
+    "source_airport", "source_airport_id",
+    "destination_airport", "destination_airport_id",
+    "codeshare", "stops", "equipment",
+]
+
+
+def load_routes_data(filepath: str = "data/routes.csv") -> pd.DataFrame:
+    routes = pd.read_csv(filepath, header=None, names=ROUTE_COLUMNS)
     routes = routes.dropna(subset=["source_airport", "destination_airport"])
-    print("🛬 Sample routes:")
-    print(routes.head(10))
     return routes
 
 
-def add_edges_to_graph(G: nx.Graph, routes_df: pd.DataFrame):
-    added_edges = 0
-    missing_nodes = 0
-    for _, row in routes_df.iterrows():
-        src = row["source_airport"]
-        dst = row["destination_airport"]
-
-        if src in G and dst in G and src != dst:
-            G.add_edge(src, dst)
-            added_edges += 1
+def add_edges_to_graph(G: nx.Graph, routes_df: pd.DataFrame) -> nx.Graph:
+    """Add every route whose endpoints are both present as nodes."""
+    pairs = zip(
+        routes_df["source_airport"].to_numpy(),
+        routes_df["destination_airport"].to_numpy(),
+    )
+    added = skipped = 0
+    for src, dst in pairs:
+        if src != dst and src in G and dst in G:
+            if not G.has_edge(src, dst):
+                G.add_edge(src, dst)
+            added += 1
         else:
-            missing_nodes += 1
-
-    print(f"✅ Added {added_edges} edges (routes) to the graph.")
-    print(f"⚠️ Skipped {missing_nodes} routes due to missing nodes.")
-
-    if src not in G:
-     print(f"⚠️ Source {src} not in graph.")
-    if dst not in G:
-     print(f"⚠️ Destination {dst} not in graph.")
-
+            skipped += 1
+    print(f"   {added} route records matched, {skipped} skipped (unknown airport)")
     return G
