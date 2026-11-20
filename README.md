@@ -31,8 +31,7 @@ python main.py --serve
 
 ## Two definitions of "best"
 
-The planner minimises one of two things, and they disagree more often than you
-would expect. Nashville to Kathmandu, for example:
+The planner minimises one of two things, and they disagree more often than what we expected. Nashville to Kathmandu, for example:
 
 | Metric | Itinerary | Segments | Distance |
 | --- | --- | --- | --- |
@@ -72,25 +71,19 @@ These are deliberate, and they bound what the tool can honestly be used for:
   bookable as a single journey.
 - The route table is a **snapshot**, not a live feed.
 
-## Where this is going
+## Next steps
 
-The routing problem above is the scaffolding, not the point. What interests me is
-the next question: airport capacity is scarce, and when it runs out somebody has
+This project is working to solve this problem: airport capacity is scarce, and when it runs out somebody has
 to decide which flights are delayed and which are not. That decision is a priority
 ordering over people, and the schemes used in practice trade off efficiency
 against how defensible the ordering is to the people subject to it.
 
-The direction I want to take this:
+TODOs:
 
 1. Add real operational data (schedules and realised delays) on top of the network.
 2. Formulate a capacity-constrained allocation as an integer program.
 3. Ask whether the optimal allocation can be approximated by a **sparse, readable
    decision rule**, and measure what that readability costs.
-
-Step 3 is the part I actually care about. Interpretable models such as sparse
-decision trees and scoring systems are found by solving discrete optimization
-problems, and the open question is how much performance you give up to get a rule
-a person can read and contest.
 
 ## Layout
 
